@@ -1,0 +1,54 @@
+name: dotnet5-azurefunctions
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  PATH_PROJECT: ./FunctionAppContagem/FunctionAppContagem.csproj
+  FUNCTION_APP: groffecontadorghlinux
+  
+jobs:
+  
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+   
+    - name: Publish com o utilitario dotnet
+      run: dotnet publish ${{ env.PATH_PROJECT }} -c Release -o app
+
+    - name: Upload da Publicação como Artifact
+      uses: actions/upload-artifact@v2.2.4
+      env:
+        CAMINHO_RELATORIO_ERROS: ${{ env.CAMINHO_PROJETO_TESTES }}/TestResults/resultado-testes.html
+      with:
+        name: functionapp-publish
+        path: ./app
+        retention-days: 30
+
+  deployment:
+    needs: [build]
+    
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Download do Artifact da Publicação
+      uses: actions/download-artifact@v2.0.10
+      with:
+        name: functionapp-publish
+        path: ./app
+
+    - name: Azure Login - Conectando com Credenciais no Azure
+      uses: Azure/login@v1.1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        
+    - name: Azure Functions - Deployment da Function App
+      uses: Azure/functions-action@v1.4.0
+      with:
+        app-name: ${{ env.FUNCTION_APP }}
+        package: './app'
